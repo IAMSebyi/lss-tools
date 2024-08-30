@@ -21,8 +21,12 @@ def main():
         projected_scene = gpp.project_to_2d()
 
         # Visualize 2D scene
-        sv = SceneVisualizer(projected_scene=projected_scene)
-        sv.plot_scene(ds + '.png')
+        sv2d = SceneVisualizer(scene=projected_scene)
+        sv2d.plot_scene2D(ds + '2d.png', False)
+
+        # Visualize 3D scene
+        sv3d = SceneVisualizer(scene=scene)
+        sv3d.plot_scene3D(ds + '3d.png', False)
 
 
 if __name__ == '__main__':

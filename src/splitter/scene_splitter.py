@@ -64,24 +64,30 @@ class SceneSplitter:
 
         # Find cameras and points that belong to each cell
         cameras = self.scene['cameras']
+        points = self.scene['points']
 
-        cell_cameras = {(r, c): [] for r in range(self.rows) for c in range(self.cols)}
-        cell_points = {(r, c): set() for r in range(self.rows) for c in range(self.cols)}
+        cell_cameras = {(r, c): {} for r in range(self.rows) for c in range(self.cols)}
+        cell_points = {(r, c): {} for r in range(self.rows) for c in range(self.cols)}
 
-        for camera in cameras.values():
+        step = 0
+        for image_id, camera in cameras.items():
+            # Log steps
+            step = step + 1
+            print(f"Current splitting step: {step}")
+
             x, z = camera['tvec'][0], camera['tvec'][2]
             for row in range(self.rows):
                 found_cell = False
                 for col in range(self.cols):
                     cell = self.cells[row][col]
                     if cell['min'][0] <= x < cell['max'][0] and cell['min'][1] <= z < cell['max'][1]:
-                        # Append the camera to the appropriate cell
-                        cell_cameras[(row, col)].append(camera)
+                        # Append the camera to the appropriate cell (use image_id as key)
+                        cell_cameras[(row, col)][image_id] = camera
 
-                        # Add points seen by the camera to the corresponding cell
-                        for point_id in camera['point3d_ids']:
-                            if point_id is not None:  # Ignore invalid point IDs
-                                cell_points[(row, col)].add(point_id)  # Add the point ID to the set (avoids duplicates)
+                        # Find points that are seen by the camera using image_id
+                        for point_id, point in points.items():
+                            if any(pt_image_id == image_id for pt_image_id, _ in point['track']):
+                                cell_points[(row, col)][point_id] = point
 
                         # Found the cell, no need to check other cells
                         found_cell = True
@@ -90,17 +96,14 @@ class SceneSplitter:
                 if found_cell:
                     break
 
-        # Convert the point ID sets to lists and map them to their coordinates
+        # Convert the cell data to the same format as the scene
         split_scenes = []
         for row in range(self.rows):
             for col in range(self.cols):
-                point_ids = list(cell_points[(row, col)])
-                points_in_cell = [self.scene['points'][pid] for pid in point_ids]
-
                 cell_scene = {
-                    'points': points_in_cell,
+                    'points': cell_points[(row, col)],
                     'cameras': cell_cameras[(row, col)]
                 }
-                split_scenes.append(cell_scene)
+                split_scenes.append(((row, col), cell_scene))
 
         return split_scenes
