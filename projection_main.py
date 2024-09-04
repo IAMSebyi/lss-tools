@@ -14,7 +14,7 @@ def main():
 
         # Load COLMAP scene
         cl = COLMAPLoader(path_to_scene=path)
-        scene = cl.load_scene()
+        num_of_points, num_of_cameras, scene = cl.load_scene()
 
         # Project scene in 2D
         gpp = GroundPlaneProjector(scene=scene)

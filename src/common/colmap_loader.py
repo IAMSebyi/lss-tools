@@ -1,5 +1,4 @@
 import struct
-import sys
 
 import numpy as np
 
@@ -60,7 +59,7 @@ class COLMAPLoader:
                     "track": track_elements
                 }
 
-        return points3D
+        return num_points3D, points3D
 
     def load_images(self):
         """
@@ -119,7 +118,7 @@ class COLMAPLoader:
                     "point3d_ids": np.array(point3d_ids)
                 }
 
-        return images
+        return num_images, images
 
     def load_scene(self):
         """
@@ -141,10 +140,10 @@ class COLMAPLoader:
             - "cameras": A dictionary of camera and image information
         """
         # Load points
-        points3D = self.load_points3D()
+        num_points3D, points3D = self.load_points3D()
 
         # Load cameras
-        images = self.load_images()
+        num_images, images = self.load_images()
 
         # Store scene information in the dictionary
         scene = {
@@ -152,4 +151,4 @@ class COLMAPLoader:
             "cameras": images
         }
 
-        return scene
+        return num_points3D, num_images, scene
