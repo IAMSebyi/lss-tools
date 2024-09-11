@@ -1,4 +1,5 @@
 import numpy as np
+from collections import defaultdict
 
 
 class SceneSplitter:
@@ -74,7 +75,9 @@ class SceneSplitter:
         cell_points = {(r, c): {} for r in range(self.rows) for c in range(self.cols)}
         cell_cameras = {(r, c): {} for r in range(self.rows) for c in range(self.cols)}
 
-        id_error_count = 0
+        cell_camera_freq = {(r, c): defaultdict(int) for r in range(self.rows) for c in range(self.cols)}
+
+        id_error_count = 0  # ID correlation error count
 
         step = 0
         for point_id, point in points.items():
@@ -98,6 +101,11 @@ class SceneSplitter:
                         for pt_image_id, _ in point['track']:
                             if pt_image_id in cameras.keys():
                                 cell_cameras[(row, col)][pt_image_id] = cameras[pt_image_id]
+                                # Initialize or increment frequency
+                                if pt_image_id in cell_camera_freq[(row, col)]:
+                                    cell_camera_freq[(row, col)][pt_image_id] += 1
+                                else:
+                                    cell_camera_freq[(row, col)][pt_image_id] = 1
                             else:
                                 id_error_count = id_error_count + 1
 
@@ -112,9 +120,21 @@ class SceneSplitter:
         split_scenes = []
         for row in range(self.rows):
             for col in range(self.cols):
-                # Check if cell is empty
+                cell_num_cameras = len(cell_cameras[(row, col)])
+                cell_num_points = len(cell_points[(row, col)])
+
+                # Prune insignificant cameras
+                cameras_to_remove = [image_id for image_id, freq in cell_camera_freq[(row, col)].items()
+                                     if freq / cell_num_points < 0.003]
+                for image_id in cameras_to_remove:
+                    del cell_cameras[(row, col)][image_id]
+
+                # Check if cell is empty or irrelevant
                 if not cell_cameras[(row, col)]:
                     print(f"WARNING: Cell scene at the ({row}, {col}) position is empty!")
+                    continue
+                elif cell_num_cameras / cell_num_points > 0.5 or cell_num_points < 10:
+                    print(f"WARNING: Cell scene at the ({row}, {col}) position is irrelevant!")
                     continue
 
                 cell_scene = {
@@ -124,6 +144,8 @@ class SceneSplitter:
 
                 split_scenes.append(((row, col), cell_scene))
 
-        print(f"WARNING: {id_error_count} image IDs extracted from points do not match cameras' image IDs!")
+        # Log the ID correlation error count
+        if id_error_count > 0:
+            print(f"WARNING: {id_error_count} image IDs extracted from points do not match cameras' image IDs!")
 
-        return split_scenes
+        return self.cells, split_scenes
